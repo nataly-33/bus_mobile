@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../shared/app_theme.dart';
-import '../../services/arcgis_service.dart';
+import '../../services/api_service.dart';
 import '../../models/linea.dart';
 import 'conductor_home_screen.dart';
 
@@ -20,14 +20,14 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
   final _placaCtrl = TextEditingController();
   final _modeloCtrl = TextEditingController();
   final _colorCtrl = TextEditingController();
-  final _anioCtrl = TextEditingController(text: '2015');
   final _asientosCtrl = TextEditingController(text: '20');
+  final _numInternoCtrl = TextEditingController();
   Linea? _lineaSeleccionada;
   File? _foto;
   bool _loading = false;
   List<Linea> _lineas = [];
 
-  final _arcgis = ArcGISService();
+  final _api = ApiService();
 
   @override
   void initState() {
@@ -36,8 +36,11 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
   }
 
   Future<void> _loadLineas() async {
-    final lineas = await _arcgis.getLineas();
-    setState(() => _lineas = lineas);
+    try {
+      final raw = await _api.getLineas();
+      setState(() => _lineas =
+          raw.map((j) => Linea.fromJson(j as Map<String, dynamic>)).toList());
+    } catch (_) {}
   }
 
   Future<void> _pickFoto() async {
@@ -59,33 +62,51 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
     setState(() => _loading = true);
 
     final prefs = await SharedPreferences.getInstance();
-    final conductorId = prefs.getInt('conductor_id') ?? 1;
+    final conductorId = prefs.getInt('conductor_id') ?? 0;
+    final hoy =
+        '${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}';
 
     final datos = {
       'placa': _placaCtrl.text.trim().toUpperCase(),
       'modelo': _modeloCtrl.text.trim(),
-      'color': _colorCtrl.text.trim(),
-      'anio': int.tryParse(_anioCtrl.text) ?? 2015,
-      'num_asientos': int.tryParse(_asientosCtrl.text) ?? 20,
-      'conductor_id': conductorId,
-      'linea_id': _lineaSeleccionada!.id,
+      'cantidad_asientos': int.tryParse(_asientosCtrl.text) ?? 20,
+      'numero_interno': _numInternoCtrl.text.trim().isNotEmpty
+          ? _numInternoCtrl.text.trim()
+          : _placaCtrl.text.trim().toUpperCase(),
+      'conductor': conductorId,
+      'linea': _lineaSeleccionada!.id,
+      'fecha_asignacion': hoy,
     };
 
-    final ok = await _arcgis.registrarMicrobus(datos);
-    if (ok) {
-      await prefs.setString('microbus_placa', datos['placa'] as String);
-      await prefs.setInt('microbus_linea_id', datos['linea_id'] as int);
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ConductorHomeScreen()),
-      );
-    } else {
+    try {
+      final res = await _api.registrarMicrobus(datos);
+      if (res.containsKey('id')) {
+        await prefs.setInt('microbus_id', res['id']);
+        await prefs.setString(
+            'microbus_placa', datos['placa'] as String);
+        await prefs.setInt(
+            'microbus_linea_id', _lineaSeleccionada!.id);
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const ConductorHomeScreen()),
+        );
+      } else {
+        setState(() => _loading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(res.toString()),
+                backgroundColor: AppTheme.danger),
+          );
+        }
+      }
+    } catch (_) {
       setState(() => _loading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Error al registrar. Intenta de nuevo.'),
+              content: Text('No se pudo conectar al servidor.'),
               backgroundColor: AppTheme.danger),
         );
       }
@@ -97,8 +118,8 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
     _placaCtrl.dispose();
     _modeloCtrl.dispose();
     _colorCtrl.dispose();
-    _anioCtrl.dispose();
     _asientosCtrl.dispose();
+    _numInternoCtrl.dispose();
     super.dispose();
   }
 
@@ -178,56 +199,27 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
               const SizedBox(height: 14),
 
               TextFormField(
-                controller: _colorCtrl,
+                controller: _numInternoCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Color *',
-                  prefixIcon: Icon(Icons.palette_outlined),
-                  hintText: 'Ej: Blanco',
+                  labelText: 'Número interno',
+                  prefixIcon: Icon(Icons.tag),
+                  hintText: 'Ej: 007 (opcional)',
                 ),
-                textCapitalization: TextCapitalization.words,
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Campo requerido' : null,
               ),
               const SizedBox(height: 14),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _anioCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Año *',
-                        prefixIcon: Icon(Icons.calendar_today_outlined),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        final n = int.tryParse(v ?? '');
-                        if (n == null || n < 1990 || n > 2025) {
-                          return 'Año inválido';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _asientosCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Asientos *',
-                        prefixIcon: Icon(Icons.airline_seat_recline_normal),
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        final n = int.tryParse(v ?? '');
-                        if (n == null || n < 5 || n > 60) {
-                          return 'Valor inválido';
-                        }
-                        return null;
-                      },
-                    ),
-                  ),
-                ],
+              TextFormField(
+                controller: _asientosCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad de asientos *',
+                  prefixIcon: Icon(Icons.airline_seat_recline_normal),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  final n = int.tryParse(v ?? '');
+                  if (n == null || n < 5 || n > 60) return 'Valor inválido';
+                  return null;
+                },
               ),
               const SizedBox(height: 14),
 
@@ -253,8 +245,9 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color:
-                              selected ? l.color : l.color.withOpacity(0.1),
+                          color: selected
+                              ? l.color
+                              : l.color.withOpacity(0.1),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: l.color, width: 1.5),
                         ),

@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'app/shared/app_theme.dart';
 import 'app/conductor/login_screen.dart';
 import 'app/usuario/usuario_home_screen.dart';
+import 'providers/lineas_provider.dart';
+import 'providers/conductor_session_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env');
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const BusesSigApp());
 }
@@ -15,11 +20,17 @@ class BusesSigApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MicroBus SCZ',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.theme,
-      home: const RoleSelectorScreen(),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => LineasProvider()),
+        ChangeNotifierProvider(create: (_) => ConductorSessionProvider()),
+      ],
+      child: MaterialApp(
+        title: 'MicroBus SCZ',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.theme,
+        home: const RoleSelectorScreen(),
+      ),
     );
   }
 }

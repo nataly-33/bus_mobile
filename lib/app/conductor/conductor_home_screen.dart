@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import '../shared/app_theme.dart';
-import '../../services/arcgis_service.dart';
+import '../../services/api_service.dart';
 import '../../models/linea.dart';
 import 'registro_microbus_screen.dart';
 import '../../main.dart';
@@ -19,6 +19,7 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
   String _nombre = '';
   String _placa = '';
   int _conductorId = 0;
+  int _microbusId = 0;
 
   List<Linea> _lineas = [];
   Linea? _lineaSeleccionada;
@@ -32,8 +33,9 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
   double _velocidadActual = 0;
   double _distanciaAcumulada = 0;
   Position? _lastPosition;
+  int? _recorridoId;
 
-  final _arcgis = ArcGISService();
+  final _api = ApiService();
 
   @override
   void initState() {
@@ -55,54 +57,95 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
       return;
     }
 
-    final lineas = await _arcgis.getLineas();
-    final lineaInicial =
-        lineaId != null ? lineas.firstWhere((l) => l.id == lineaId, orElse: () => lineas.first) : lineas.first;
+    List<Linea> lineas = [];
+    try {
+      final raw = await _api.getLineas();
+      lineas = raw
+          .map((j) => Linea.fromJson(j as Map<String, dynamic>))
+          .toList();
+    } catch (_) {}
+
+    final lineaInicial = lineaId != null && lineas.isNotEmpty
+        ? lineas.firstWhere((l) => l.id == lineaId,
+            orElse: () => lineas.first)
+        : lineas.isNotEmpty
+            ? lineas.first
+            : null;
 
     setState(() {
       _nombre = prefs.getString('conductor_nombre') ?? 'Conductor';
       _placa = placa;
-      _conductorId = prefs.getInt('conductor_id') ?? 1;
+      _conductorId = prefs.getInt('conductor_id') ?? 0;
+      _microbusId = prefs.getInt('microbus_id') ?? 0;
       _lineas = lineas;
       _lineaSeleccionada = lineaInicial;
     });
   }
 
-  void _iniciarRecorrido() {
+  Future<void> _iniciarRecorrido() async {
+    if (_lineaSeleccionada == null) return;
+
+    final rutaId = _lineaSeleccionada!.rutaIdForSentido(_sentido);
+    if (rutaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Esta línea aún no tiene ruta configurada.'),
+          backgroundColor: AppTheme.danger,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+    try {
+      final res = await _api.iniciarRecorrido({
+        'microbus_id': _microbusId,
+        'linea_ruta_id': rutaId,
+      });
+      _recorridoId = res['recorrido_id'];
+    } catch (_) {
+      setState(() => _loading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se pudo iniciar el recorrido. Verifica conexión.'),
+            backgroundColor: AppTheme.danger,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _recorridoActivo = true;
+      _loading = false;
       _segundosTranscurridos = 0;
       _distanciaAcumulada = 0;
     });
 
-    // Contador de tiempo
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() => _segundosTranscurridos++);
     });
 
-    // Enviar GPS cada 30 seg
     _gpsTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+      if (_recorridoId == null) return;
       try {
         final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high,
         );
         if (_lastPosition != null) {
-          final dist = Geolocator.distanceBetween(
+          _distanciaAcumulada += Geolocator.distanceBetween(
             _lastPosition!.latitude,
             _lastPosition!.longitude,
             pos.latitude,
             pos.longitude,
           );
-          _distanciaAcumulada += dist;
         }
         _lastPosition = pos;
         setState(() => _velocidadActual = (pos.speed * 3.6).clamp(0, 120));
 
-        await _arcgis.enviarPosicion(
-          conductorId: _conductorId,
-          placa: _placa,
-          lineaId: _lineaSeleccionada!.id,
-          sentido: _sentido,
+        await _api.enviarPosicion(
+          recorridoId: _recorridoId!,
           lat: pos.latitude,
           lng: pos.longitude,
           velocidad: _velocidadActual,
@@ -113,20 +156,28 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
     });
   }
 
-  Future<void> _terminarRecorrido() async {
+  Future<void> _terminarRecorrido({String? motivo}) async {
     _timer?.cancel();
     _gpsTimer?.cancel();
-    await _arcgis.terminarRecorrido(_conductorId);
+    if (_recorridoId != null) {
+      try {
+        await _api.terminarRecorrido(_recorridoId!, motivo: motivo);
+      } catch (_) {}
+    }
     setState(() {
       _recorridoActivo = false;
       _velocidadActual = 0;
       _lastPosition = null;
+      _recorridoId = null;
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Recorrido terminado. ¡Buen trabajo!'),
-          backgroundColor: AppTheme.success,
+        SnackBar(
+          content: Text(motivo != null
+              ? 'Salida registrada: $motivo'
+              : 'Recorrido terminado. ¡Buen trabajo!'),
+          backgroundColor:
+              motivo != null ? AppTheme.danger : AppTheme.success,
         ),
       );
     }
@@ -138,15 +189,7 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
       builder: (ctx) => const _SalirRutaDialog(),
     );
     if (motivo == null) return;
-    await _terminarRecorrido();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Salida registrada: $motivo'),
-          backgroundColor: AppTheme.danger,
-        ),
-      );
-    }
+    await _terminarRecorrido(motivo: motivo);
   }
 
   Future<void> _cerrarSesion() async {
@@ -264,7 +307,6 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                         ],
                       ),
                     ),
-                    // Estado
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 5),
@@ -307,7 +349,6 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Estadísticas (solo cuando activo)
             if (_recorridoActivo) ...[
               Card(
                 color: AppTheme.success.withOpacity(0.05),
@@ -347,7 +388,6 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
               const SizedBox(height: 16),
             ],
 
-            // Selector de línea
             const Text(
               'Línea a recorrer:',
               style: TextStyle(
@@ -372,10 +412,12 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                     decoration: BoxDecoration(
                       color: selected
                           ? l.color
-                          : l.color.withOpacity(_recorridoActivo ? 0.05 : 0.1),
+                          : l.color.withOpacity(
+                              _recorridoActivo ? 0.05 : 0.1),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: l.color.withOpacity(_recorridoActivo ? 0.3 : 1),
+                          color: l.color
+                              .withOpacity(_recorridoActivo ? 0.3 : 1),
                           width: 1.5),
                     ),
                     child: Text(
@@ -383,7 +425,8 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                       style: TextStyle(
                         color: selected
                             ? Colors.white
-                            : l.color.withOpacity(_recorridoActivo ? 0.5 : 1),
+                            : l.color.withOpacity(
+                                _recorridoActivo ? 0.5 : 1),
                         fontWeight: FontWeight.bold,
                         fontSize: 13,
                       ),
@@ -394,7 +437,6 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Selector de sentido
             const Text(
               'Sentido:',
               style: TextStyle(
@@ -411,8 +453,9 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                     icon: Icons.arrow_forward,
                     selected: _sentido == 'ida',
                     disabled: _recorridoActivo,
-                    onTap: () =>
-                        _recorridoActivo ? null : setState(() => _sentido = 'ida'),
+                    onTap: () => _recorridoActivo
+                        ? null
+                        : setState(() => _sentido = 'ida'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -422,21 +465,29 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                     icon: Icons.arrow_back,
                     selected: _sentido == 'vuelta',
                     disabled: _recorridoActivo,
-                    onTap: () =>
-                        _recorridoActivo ? null : setState(() => _sentido = 'vuelta'),
+                    onTap: () => _recorridoActivo
+                        ? null
+                        : setState(() => _sentido = 'vuelta'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // Botón INICIAR RECORRIDO
             if (!_recorridoActivo)
               SizedBox(
                 height: 56,
                 child: ElevatedButton.icon(
-                  onPressed: _lineaSeleccionada == null ? null : _iniciarRecorrido,
-                  icon: const Icon(Icons.play_arrow, size: 28),
+                  onPressed: (_lineaSeleccionada == null || _loading)
+                      ? null
+                      : _iniciarRecorrido,
+                  icon: _loading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.play_arrow, size: 28),
                   label: const Text('INICIAR RECORRIDO'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.success,
@@ -447,7 +498,6 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                 ),
               ),
 
-            // Botones TERMINAR / SALIR (cuando activo)
             if (_recorridoActivo) ...[
               Row(
                 children: [
@@ -499,12 +549,11 @@ class _StatItem extends StatelessWidget {
   final String value;
   final Color color;
 
-  const _StatItem({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
+  const _StatItem(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -514,9 +563,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(value,
             style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: color)),
+                fontSize: 15, fontWeight: FontWeight.bold, color: color)),
         Text(label,
             style: const TextStyle(
                 fontSize: 11, color: AppTheme.textSecondary)),
@@ -532,13 +579,12 @@ class _SentidoButton extends StatelessWidget {
   final bool disabled;
   final VoidCallback? onTap;
 
-  const _SentidoButton({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.disabled,
-    this.onTap,
-  });
+  const _SentidoButton(
+      {required this.label,
+      required this.icon,
+      required this.selected,
+      required this.disabled,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -559,8 +605,7 @@ class _SentidoButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon,
-                color: selected ? Colors.white : AppTheme.primary,
-                size: 18),
+                color: selected ? Colors.white : AppTheme.primary, size: 18),
             const SizedBox(width: 6),
             Text(
               label,
@@ -602,8 +647,8 @@ class _SalirRutaDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: _motivos
             .map((m) => ListTile(
-                  leading: const Icon(Icons.circle, size: 8,
-                      color: AppTheme.danger),
+                  leading: const Icon(Icons.circle,
+                      size: 8, color: AppTheme.danger),
                   title: Text(m),
                   onTap: () => Navigator.pop(context, m),
                 ))

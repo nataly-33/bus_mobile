@@ -2,21 +2,35 @@ import 'package:flutter/material.dart';
 
 class Linea {
   final int id;
+  final String codigo;
   final String nombre;
   final String colorHex;
+  final int? rutaIdaId;
+  final int? rutaVueltaId;
 
-  const Linea({required this.id, required this.nombre, required this.colorHex});
+  const Linea({
+    required this.id,
+    required this.codigo,
+    required this.nombre,
+    required this.colorHex,
+    this.rutaIdaId,
+    this.rutaVueltaId,
+  });
 
   Color get color {
     final hex = colorHex.replaceFirst('#', '');
     return Color(int.parse('FF$hex', radix: 16));
   }
 
-  static List<Linea> get mockLineas => const [
-        Linea(id: 12, nombre: 'Línea 12', colorHex: '#1565C0'),
-        Linea(id: 20, nombre: 'Línea 20', colorHex: '#2E7D32'),
-        Linea(id: 26, nombre: 'Línea 26', colorHex: '#C62828'),
-        Linea(id: 4, nombre: 'Trufí 4', colorHex: '#E65100'),
-        Linea(id: 33, nombre: 'Línea 33', colorHex: '#6A1B9A'),
-      ];
+  int? rutaIdForSentido(String sentido) =>
+      sentido == 'ida' ? rutaIdaId : rutaVueltaId;
+
+  factory Linea.fromJson(Map<String, dynamic> json) => Linea(
+        id: json['id'],
+        codigo: json['codigo'] ?? '',
+        nombre: json['nombre'],
+        colorHex: json['color'] ?? '#1565C0',
+        rutaIdaId: json['ruta_ida_id'],
+        rutaVueltaId: json['ruta_vuelta_id'],
+      );
 }

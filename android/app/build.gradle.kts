@@ -5,6 +5,21 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Lee GOOGLE_MAPS_API_KEY desde bus_mobile/.env
+fun readEnvKey(key: String): String {
+    val envFile = rootProject.file(".env")
+    if (envFile.exists()) {
+        envFile.readLines().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.startsWith("$key=")) {
+                return trimmed.removePrefix("$key=").trim()
+            }
+        }
+    }
+    // Fallback: variable de entorno del sistema
+    return System.getenv(key) ?: ""
+}
+
 android {
     namespace = "com.example.buses_sig"
     compileSdk = flutter.compileSdkVersion
@@ -20,20 +35,16 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.buses_sig"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["GOOGLE_MAPS_API_KEY"] = readEnvKey("GOOGLE_MAPS_API_KEY")
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

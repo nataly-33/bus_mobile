@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../shared/app_theme.dart';
-import '../shared/widgets/mock_map.dart';
 import '../shared/widgets/linea_chip.dart';
 import '../../models/linea.dart';
-import '../../models/posicion_gps.dart';
-import '../../services/arcgis_service.dart';
+import '../../models/posicion_activa.dart';
+import '../../services/api_service.dart';
+import '../../config/app_config.dart';
 
 class EsperandoMicrobusScreen extends StatefulWidget {
   const EsperandoMicrobusScreen({super.key});
@@ -19,13 +20,16 @@ class _EsperandoMicrobusScreenState
     extends State<EsperandoMicrobusScreen> {
   List<Linea> _lineas = [];
   Linea? _lineaSeleccionada;
-  List<PosicionGPS> _microbuses = [];
+  List<PosicionActiva> _microbuses = [];
   bool _loadingLineas = true;
   bool _loadingMicros = false;
   Timer? _refreshTimer;
   DateTime? _ultimaActualizacion;
 
-  final _arcgis = ArcGISService();
+  GoogleMapController? _mapController;
+  Set<Marker> _busMarkers = {};
+
+  final _api = ApiService();
 
   @override
   void initState() {
@@ -34,54 +38,78 @@ class _EsperandoMicrobusScreenState
   }
 
   Future<void> _loadLineas() async {
-    final lineas = await _arcgis.getLineas();
-    setState(() {
-      _lineas = lineas;
-      _lineaSeleccionada = lineas.isNotEmpty ? lineas.first : null;
-      _loadingLineas = false;
-    });
-    if (_lineaSeleccionada != null) _loadMicrobuses();
+    try {
+      final raw = await _api.getLineas();
+      final lineas =
+          raw.map((j) => Linea.fromJson(j as Map<String, dynamic>)).toList();
+      setState(() {
+        _lineas = lineas;
+        _lineaSeleccionada = lineas.isNotEmpty ? lineas.first : null;
+        _loadingLineas = false;
+      });
+      if (_lineaSeleccionada != null) _loadMicrobuses();
+    } catch (_) {
+      setState(() => _loadingLineas = false);
+    }
   }
 
   Future<void> _loadMicrobuses() async {
     if (_lineaSeleccionada == null) return;
     setState(() => _loadingMicros = true);
-    final micros = await _arcgis.getMicrobusesActivos(_lineaSeleccionada!.id);
-    setState(() {
-      _microbuses = micros;
-      _loadingMicros = false;
-      _ultimaActualizacion = DateTime.now();
-    });
+    try {
+      final raw =
+          await _api.getMicrobusesActivos(_lineaSeleccionada!.id);
+      final microbuses = raw
+          .map((j) =>
+              PosicionActiva.fromJson(j as Map<String, dynamic>))
+          .toList();
+
+      final color = _lineaSeleccionada!.color;
+      final markers = <Marker>{};
+      for (final m in microbuses) {
+        markers.add(Marker(
+          markerId: MarkerId('bus_${m.recorridoId}'),
+          position: LatLng(m.latitud, m.longitud),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+              BitmapDescriptor.hueOrange),
+          infoWindow: InfoWindow(
+            title: m.placa,
+            snippet: '${m.velocidad.toStringAsFixed(0)} km/h',
+          ),
+        ));
+      }
+
+      setState(() {
+        _microbuses = microbuses;
+        _busMarkers = markers;
+        _loadingMicros = false;
+        _ultimaActualizacion = DateTime.now();
+      });
+
+      if (microbuses.isNotEmpty) {
+        _mapController?.animateCamera(
+          CameraUpdate.newLatLng(
+            LatLng(microbuses.first.latitud, microbuses.first.longitud),
+          ),
+        );
+      }
+    } catch (_) {
+      setState(() => _loadingMicros = false);
+    }
   }
 
   void _iniciarAutoRefresh() {
     _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      _loadMicrobuses();
-    });
+    _refreshTimer = Timer.periodic(
+      const Duration(seconds: AppConfig.intervaloActualizacionSegundos),
+      (_) => _loadMicrobuses(),
+    );
   }
 
   @override
   void dispose() {
     _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  List<MockBusMarker> get _busMarkers {
-    const positions = [
-      [0.25, 0.48],
-      [0.55, 0.52],
-      [0.75, 0.45],
-    ];
-    return List.generate(
-      _microbuses.length.clamp(0, positions.length),
-      (i) => MockBusMarker(
-        label: _microbuses[i].placa,
-        relX: positions[i][0],
-        relY: positions[i][1],
-        color: _lineaSeleccionada?.color ?? AppTheme.accent,
-      ),
-    );
   }
 
   String get _tiempoActualizacion {
@@ -116,7 +144,8 @@ class _EsperandoMicrobusScreenState
           // Selector de línea
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding:
+                const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -136,14 +165,17 @@ class _EsperandoMicrobusScreenState
                     child: Row(
                       children: _lineas
                           .map((l) => Padding(
-                                padding: const EdgeInsets.only(right: 8),
+                                padding:
+                                    const EdgeInsets.only(right: 8),
                                 child: LineaChip(
                                   linea: l,
-                                  selected: _lineaSeleccionada?.id == l.id,
+                                  selected:
+                                      _lineaSeleccionada?.id == l.id,
                                   onTap: () {
                                     setState(() {
                                       _lineaSeleccionada = l;
                                       _microbuses = [];
+                                      _busMarkers = {};
                                     });
                                     _loadMicrobuses();
                                   },
@@ -161,21 +193,21 @@ class _EsperandoMicrobusScreenState
             height: 300,
             child: Stack(
               children: [
-                MockMapWidget(
-                  busMarkers: _busMarkers,
-                  routes: _lineaSeleccionada != null
-                      ? [
-                          MockRouteOverlay(
-                            color: _lineaSeleccionada!.color,
-                            nombre: _lineaSeleccionada!.nombre,
-                          )
-                        ]
-                      : [],
+                GoogleMap(
+                  initialCameraPosition: const CameraPosition(
+                    target: LatLng(AppConfig.mapLat, AppConfig.mapLng),
+                    zoom: AppConfig.mapZoom,
+                  ),
+                  markers: _busMarkers,
+                  myLocationEnabled: true,
+                  myLocationButtonEnabled: false,
+                  onMapCreated: (c) => _mapController = c,
                 ),
                 if (_loadingMicros)
                   Container(
                     color: Colors.black12,
-                    child: const Center(child: CircularProgressIndicator()),
+                    child: const Center(
+                        child: CircularProgressIndicator()),
                   ),
               ],
             ),
@@ -190,7 +222,8 @@ class _EsperandoMicrobusScreenState
                 children: [
                   // Header
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    padding:
+                        const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: Row(
                       children: [
                         Container(
@@ -203,7 +236,8 @@ class _EsperandoMicrobusScreenState
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: _microbuses.isNotEmpty
-                                  ? AppTheme.success.withOpacity(0.4)
+                                  ? AppTheme.success
+                                      .withOpacity(0.4)
                                   : Colors.grey.withOpacity(0.3),
                             ),
                           ),
@@ -251,7 +285,8 @@ class _EsperandoMicrobusScreenState
                     child: _microbuses.isEmpty && !_loadingMicros
                         ? const Center(
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.directions_bus_outlined,
                                     size: 48,
@@ -278,10 +313,12 @@ class _EsperandoMicrobusScreenState
                                     backgroundColor: _lineaSeleccionada
                                             ?.color
                                             .withOpacity(0.15) ??
-                                        AppTheme.accent.withOpacity(0.15),
+                                        AppTheme.accent
+                                            .withOpacity(0.15),
                                     child: Icon(
                                       Icons.directions_bus_rounded,
-                                      color: _lineaSeleccionada?.color ??
+                                      color: _lineaSeleccionada
+                                              ?.color ??
                                           AppTheme.accent,
                                     ),
                                   ),
@@ -291,15 +328,16 @@ class _EsperandoMicrobusScreenState
                                         fontWeight: FontWeight.bold),
                                   ),
                                   subtitle: Text(
-                                    'Sentido: ${m.sentido}  •  ${m.velocidad.toStringAsFixed(0)} km/h',
-                                    style: const TextStyle(fontSize: 12),
+                                    '${m.velocidad.toStringAsFixed(0)} km/h',
+                                    style:
+                                        const TextStyle(fontSize: 12),
                                   ),
                                   trailing: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color:
-                                          AppTheme.success.withOpacity(0.1),
+                                      color: AppTheme.success
+                                          .withOpacity(0.1),
                                       borderRadius:
                                           BorderRadius.circular(8),
                                     ),
@@ -326,23 +364,26 @@ class _EsperandoMicrobusScreenState
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(
+                            color: Colors.grey.shade200),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.autorenew,
-                              size: 18, color: AppTheme.textSecondary),
+                              size: 18,
+                              color: AppTheme.textSecondary),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
-                              'Actualización automática cada 15 segundos',
+                              'Actualización automática cada 15s',
                               style: TextStyle(
                                   fontSize: 12,
                                   color: AppTheme.textSecondary),
                             ),
                           ),
                           Switch(
-                            value: _refreshTimer?.isActive ?? false,
+                            value:
+                                _refreshTimer?.isActive ?? false,
                             activeColor: AppTheme.accent,
                             onChanged: (v) {
                               if (v) {
