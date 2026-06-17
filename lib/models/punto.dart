@@ -4,6 +4,7 @@ class Punto {
   final double longitud;
   final String? descripcion;
   final int orden;
+  final String stop; // 'S' = parada oficial, 'N' = punto de ruta
 
   const Punto({
     required this.id,
@@ -11,7 +12,10 @@ class Punto {
     required this.longitud,
     this.descripcion,
     required this.orden,
+    this.stop = 'N',
   });
+
+  bool get esParada => stop == 'S';
 
   factory Punto.fromJson(Map<String, dynamic> json) => Punto(
         id: json['id'],
@@ -19,5 +23,6 @@ class Punto {
         longitud: double.parse(json['longitud'].toString()),
         descripcion: json['descripcion'],
         orden: json['orden'] ?? 0,
+        stop: json['stop']?.toString() ?? 'N',
       );
 }

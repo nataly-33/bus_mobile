@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../shared/app_theme.dart';
 import '../shared/widgets/linea_chip.dart';
 import '../../models/linea.dart';
@@ -21,9 +22,9 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
   bool _loadingLineas = true;
   bool _loadingPuntos = false;
 
-  GoogleMapController? _mapController;
-  Set<Polyline> _polylines = {};
-  Set<Marker> _markers = {};
+  final _mapController = MapController();
+  List<Polyline> _polylines = [];
+  List<Marker> _markers = [];
 
   final _api = ApiService();
 
@@ -31,6 +32,12 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
   void initState() {
     super.initState();
     _loadLineas();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLineas() async {
@@ -54,8 +61,8 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
     final rutaId = _lineaSeleccionada!.rutaIdForSentido(_sentido);
     if (rutaId == null) {
       setState(() {
-        _polylines = {};
-        _markers = {};
+        _polylines = [];
+        _markers = [];
       });
       return;
     }
@@ -67,40 +74,44 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
           raw.map((j) => Punto.fromJson(j as Map<String, dynamic>)).toList();
 
       final color = _lineaSeleccionada!.color;
+      final points = puntos.map((p) => LatLng(p.latitud, p.longitud)).toList();
+
       final polyline = Polyline(
-        polylineId: const PolylineId('ruta'),
-        points: puntos.map((p) => LatLng(p.latitud, p.longitud)).toList(),
+        points: points,
         color: color,
-        width: 4,
+        strokeWidth: 4.0,
       );
 
-      final markers = <Marker>{};
+      final markers = <Marker>[];
       if (puntos.isNotEmpty) {
         markers.add(Marker(
-          markerId: const MarkerId('inicio'),
-          position: LatLng(puntos.first.latitud, puntos.first.longitud),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueGreen),
-          infoWindow: const InfoWindow(title: 'Inicio'),
+          point: LatLng(puntos.first.latitud, puntos.first.longitud),
+          width: 32,
+          height: 32,
+          child: const Icon(Icons.circle, color: Colors.green, size: 20),
         ));
         markers.add(Marker(
-          markerId: const MarkerId('fin'),
-          position: LatLng(puntos.last.latitud, puntos.last.longitud),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueRed),
-          infoWindow: const InfoWindow(title: 'Fin'),
+          point: LatLng(puntos.last.latitud, puntos.last.longitud),
+          width: 32,
+          height: 32,
+          child: const Icon(Icons.circle, color: Colors.red, size: 20),
         ));
 
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLngBounds(
-            _boundsFromPuntos(puntos),
-            50,
-          ),
-        );
+        if (points.length > 1) {
+          final bounds = LatLngBounds.fromPoints(points);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _mapController.fitCamera(
+              CameraFit.bounds(
+                bounds: bounds,
+                padding: const EdgeInsets.all(50),
+              ),
+            );
+          });
+        }
       }
 
       setState(() {
-        _polylines = {polyline};
+        _polylines = [polyline];
         _markers = markers;
         _loadingPuntos = false;
       });
@@ -109,30 +120,12 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
     }
   }
 
-  LatLngBounds _boundsFromPuntos(List<Punto> puntos) {
-    double minLat = puntos.first.latitud;
-    double maxLat = puntos.first.latitud;
-    double minLng = puntos.first.longitud;
-    double maxLng = puntos.first.longitud;
-    for (final p in puntos) {
-      if (p.latitud < minLat) minLat = p.latitud;
-      if (p.latitud > maxLat) maxLat = p.latitud;
-      if (p.longitud < minLng) minLng = p.longitud;
-      if (p.longitud > maxLng) maxLng = p.longitud;
-    }
-    return LatLngBounds(
-      southwest: LatLng(minLat, minLng),
-      northeast: LatLng(maxLat, maxLng),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Recorrido de Línea')),
       body: Column(
         children: [
-          // Panel de selección
           Container(
             color: Colors.white,
             padding: const EdgeInsets.all(16),
@@ -191,35 +184,32 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
               ],
             ),
           ),
-
-          // Mapa
           Expanded(
             child: Stack(
               children: [
-                GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target:
-                        LatLng(AppConfig.mapLat, AppConfig.mapLng),
-                    zoom: AppConfig.mapZoom,
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter:
+                        const LatLng(AppConfig.mapLat, AppConfig.mapLng),
+                    initialZoom: AppConfig.mapZoom,
                   ),
-                  polylines: _polylines,
-                  markers: _markers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: true,
-                  onMapCreated: (controller) =>
-                      _mapController = controller,
+                  children: [
+                    TileLayer(urlTemplate: AppTheme.mapTileUrl, userAgentPackageName: AppTheme.mapTileUserAgent),
+                    PolylineLayer(polylines: _polylines),
+                    MarkerLayer(markers: _markers),
+                  ],
                 ),
                 if (_loadingPuntos)
                   Container(
                     color: Colors.black12,
                     child: const Center(child: CircularProgressIndicator()),
                   ),
-                // Info card de la línea
                 if (_lineaSeleccionada != null)
                   Positioned(
                     top: 12,
                     left: 12,
-                    right: 56,
+                    right: 12,
                     child: Card(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
@@ -237,15 +227,14 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                '${_lineaSeleccionada!.nombre} — ${_sentido == 'ida' ? 'Ida' : 'Vuelta'}',
+                                '${_lineaSeleccionada!.nombre} — '
+                                '${_sentido == 'ida' ? 'Ida' : 'Vuelta'}',
                                 style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14),
+                                    fontWeight: FontWeight.bold, fontSize: 14),
                               ),
                             ),
                             _LeyendaDot(
-                                color: Colors.green.shade700,
-                                label: 'Inicio'),
+                                color: Colors.green.shade700, label: 'Inicio'),
                             const SizedBox(width: 10),
                             _LeyendaDot(
                                 color: Colors.red.shade700, label: 'Fin'),
@@ -267,8 +256,7 @@ class _SentidoToggle extends StatelessWidget {
   final String sentido;
   final ValueChanged<String> onChanged;
 
-  const _SentidoToggle(
-      {required this.sentido, required this.onChanged});
+  const _SentidoToggle({required this.sentido, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -276,22 +264,19 @@ class _SentidoToggle extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.background,
         borderRadius: BorderRadius.circular(8),
-        border:
-            Border.all(color: AppTheme.primary.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.primary.withOpacity(0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           _ToggleOption(
-            label: 'Ida',
-            selected: sentido == 'ida',
-            onTap: () => onChanged('ida'),
-          ),
+              label: 'Ida',
+              selected: sentido == 'ida',
+              onTap: () => onChanged('ida')),
           _ToggleOption(
-            label: 'Vuelta',
-            selected: sentido == 'vuelta',
-            onTap: () => onChanged('vuelta'),
-          ),
+              label: 'Vuelta',
+              selected: sentido == 'vuelta',
+              onTap: () => onChanged('vuelta')),
         ],
       ),
     );
@@ -312,8 +297,7 @@ class _ToggleOption extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: selected ? AppTheme.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
@@ -321,10 +305,8 @@ class _ToggleOption extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color:
-                selected ? Colors.white : AppTheme.textSecondary,
-            fontWeight:
-                selected ? FontWeight.bold : FontWeight.normal,
+            color: selected ? Colors.white : AppTheme.textSecondary,
+            fontWeight: selected ? FontWeight.bold : FontWeight.normal,
             fontSize: 13,
           ),
         ),
@@ -351,8 +333,8 @@ class _LeyendaDot extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         Text(label,
-            style: const TextStyle(
-                fontSize: 10, color: AppTheme.textSecondary)),
+            style:
+                const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
       ],
     );
   }

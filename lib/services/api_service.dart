@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
+import '../models/resultado_ruta.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -9,7 +10,7 @@ class ApiService {
 
   final String base = AppConfig.baseUrl;
 
-  // ── LÍNEAS ──────────────────────────────────────────────
+  // ── LÍNEAS ──────────────────────────────────────────────────────────────────
 
   Future<List<dynamic>> getLineas() async {
     final res = await http.get(Uri.parse('$base/api/lineas/'));
@@ -17,8 +18,8 @@ class ApiService {
   }
 
   Future<List<dynamic>> getPuntosRuta(int lineaRutaId) async {
-    final res =
-        await http.get(Uri.parse('$base/api/lineas-ruta/$lineaRutaId/puntos/'));
+    final res = await http.get(
+        Uri.parse('$base/api/lineas-ruta/$lineaRutaId/puntos/'));
     return jsonDecode(res.body);
   }
 
@@ -29,7 +30,40 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // ── MICROBUSES ACTIVOS ────────────────────────────────────
+  // ── PARADAS (para mapa de búsqueda de ruta) ──────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getParadas() async {
+    final res = await http.get(Uri.parse('$base/api/paradas/'));
+    final List<dynamic> data = jsonDecode(res.body);
+    return data.cast<Map<String, dynamic>>();
+  }
+
+  // ── BUSCAR RUTA (Dijkstra) ────────────────────────────────────────────────
+
+  Future<List<ResultadoRuta>> buscarRuta({
+    required double origenLat,
+    required double origenLng,
+    required double destinoLat,
+    required double destinoLng,
+  }) async {
+    final res = await http.post(
+      Uri.parse('$base/api/buscar-ruta/'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'origen_lat': origenLat,
+        'origen_lng': origenLng,
+        'destino_lat': destinoLat,
+        'destino_lng': destinoLng,
+      }),
+    );
+    if (res.statusCode != 200) return [];
+    final List<dynamic> data = jsonDecode(res.body);
+    return data
+        .map((j) => ResultadoRuta.fromJson(j as Map<String, dynamic>))
+        .toList();
+  }
+
+  // ── MICROBUSES ACTIVOS ────────────────────────────────────────────────────
 
   Future<List<dynamic>> getMicrobusesActivos(int lineaId) async {
     final res = await http
@@ -37,7 +71,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // ── CONDUCTOR ────────────────────────────────────────────
+  // ── CONDUCTOR ─────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> loginConductor(
       String email, String password) async {
@@ -69,7 +103,7 @@ class ApiService {
     return jsonDecode(res.body);
   }
 
-  // ── GPS / RECORRIDO ───────────────────────────────────────
+  // ── GPS / RECORRIDO ───────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> iniciarRecorrido(
       Map<String, dynamic> data) async {

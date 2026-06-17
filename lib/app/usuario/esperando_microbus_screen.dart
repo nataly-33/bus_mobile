@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../shared/app_theme.dart';
 import '../shared/widgets/linea_chip.dart';
 import '../../models/linea.dart';
@@ -16,8 +17,7 @@ class EsperandoMicrobusScreen extends StatefulWidget {
       _EsperandoMicrobusScreenState();
 }
 
-class _EsperandoMicrobusScreenState
-    extends State<EsperandoMicrobusScreen> {
+class _EsperandoMicrobusScreenState extends State<EsperandoMicrobusScreen> {
   List<Linea> _lineas = [];
   Linea? _lineaSeleccionada;
   List<PosicionActiva> _microbuses = [];
@@ -26,8 +26,8 @@ class _EsperandoMicrobusScreenState
   Timer? _refreshTimer;
   DateTime? _ultimaActualizacion;
 
-  GoogleMapController? _mapController;
-  Set<Marker> _busMarkers = {};
+  final _mapController = MapController();
+  List<Marker> _busMarkers = [];
 
   final _api = ApiService();
 
@@ -35,6 +35,13 @@ class _EsperandoMicrobusScreenState
   void initState() {
     super.initState();
     _loadLineas();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    _mapController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLineas() async {
@@ -57,24 +64,22 @@ class _EsperandoMicrobusScreenState
     if (_lineaSeleccionada == null) return;
     setState(() => _loadingMicros = true);
     try {
-      final raw =
-          await _api.getMicrobusesActivos(_lineaSeleccionada!.id);
+      final raw = await _api.getMicrobusesActivos(_lineaSeleccionada!.id);
       final microbuses = raw
-          .map((j) =>
-              PosicionActiva.fromJson(j as Map<String, dynamic>))
+          .map((j) => PosicionActiva.fromJson(j as Map<String, dynamic>))
           .toList();
 
-      final color = _lineaSeleccionada!.color;
-      final markers = <Marker>{};
+      final lineaColor = _lineaSeleccionada!.color;
+      final markers = <Marker>[];
       for (final m in microbuses) {
         markers.add(Marker(
-          markerId: MarkerId('bus_${m.recorridoId}'),
-          position: LatLng(m.latitud, m.longitud),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-              BitmapDescriptor.hueOrange),
-          infoWindow: InfoWindow(
-            title: m.placa,
-            snippet: '${m.velocidad.toStringAsFixed(0)} km/h',
+          point: LatLng(m.latitud, m.longitud),
+          width: 48,
+          height: 48,
+          child: Tooltip(
+            message: '${m.placa} · ${m.velocidad.toStringAsFixed(0)} km/h',
+            child: Icon(Icons.directions_bus_rounded,
+                color: lineaColor, size: 36),
           ),
         ));
       }
@@ -87,10 +92,9 @@ class _EsperandoMicrobusScreenState
       });
 
       if (microbuses.isNotEmpty) {
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLng(
-            LatLng(microbuses.first.latitud, microbuses.first.longitud),
-          ),
+        _mapController.move(
+          LatLng(microbuses.first.latitud, microbuses.first.longitud),
+          15.0,
         );
       }
     } catch (_) {
@@ -106,12 +110,6 @@ class _EsperandoMicrobusScreenState
     );
   }
 
-  @override
-  void dispose() {
-    _refreshTimer?.cancel();
-    super.dispose();
-  }
-
   String get _tiempoActualizacion {
     if (_ultimaActualizacion == null) return '';
     final diff = DateTime.now().difference(_ultimaActualizacion!);
@@ -124,7 +122,7 @@ class _EsperandoMicrobusScreenState
     return Scaffold(
       appBar: AppBar(
         title: const Text('Esperando Microbús'),
-        backgroundColor: AppTheme.accent,
+        backgroundColor: AppTheme.secondary,
         actions: [
           IconButton(
             icon: _loadingMicros
@@ -141,11 +139,9 @@ class _EsperandoMicrobusScreenState
       ),
       body: Column(
         children: [
-          // Selector de línea
           Container(
             color: Colors.white,
-            padding:
-                const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -165,17 +161,15 @@ class _EsperandoMicrobusScreenState
                     child: Row(
                       children: _lineas
                           .map((l) => Padding(
-                                padding:
-                                    const EdgeInsets.only(right: 8),
+                                padding: const EdgeInsets.only(right: 8),
                                 child: LineaChip(
                                   linea: l,
-                                  selected:
-                                      _lineaSeleccionada?.id == l.id,
+                                  selected: _lineaSeleccionada?.id == l.id,
                                   onTap: () {
                                     setState(() {
                                       _lineaSeleccionada = l;
                                       _microbuses = [];
-                                      _busMarkers = {};
+                                      _busMarkers = [];
                                     });
                                     _loadMicrobuses();
                                   },
@@ -188,42 +182,38 @@ class _EsperandoMicrobusScreenState
             ),
           ),
 
-          // Mapa
           SizedBox(
             height: 300,
             child: Stack(
               children: [
-                GoogleMap(
-                  initialCameraPosition: const CameraPosition(
-                    target: LatLng(AppConfig.mapLat, AppConfig.mapLng),
-                    zoom: AppConfig.mapZoom,
+                FlutterMap(
+                  mapController: _mapController,
+                  options: const MapOptions(
+                    initialCenter: LatLng(AppConfig.mapLat, AppConfig.mapLng),
+                    initialZoom: AppConfig.mapZoom,
                   ),
-                  markers: _busMarkers,
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  onMapCreated: (c) => _mapController = c,
+                  children: [
+                    TileLayer(urlTemplate: AppTheme.mapTileUrl, userAgentPackageName: AppTheme.mapTileUserAgent),
+                    MarkerLayer(markers: _busMarkers),
+                  ],
                 ),
                 if (_loadingMicros)
                   Container(
                     color: Colors.black12,
-                    child: const Center(
-                        child: CircularProgressIndicator()),
+                    child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),
           ),
 
-          // Panel de microbuses activos
           Expanded(
             child: Container(
               color: AppTheme.background,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
                   Padding(
-                    padding:
-                        const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                     child: Row(
                       children: [
                         Container(
@@ -236,8 +226,7 @@ class _EsperandoMicrobusScreenState
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: _microbuses.isNotEmpty
-                                  ? AppTheme.success
-                                      .withOpacity(0.4)
+                                  ? AppTheme.success.withOpacity(0.4)
                                   : Colors.grey.withOpacity(0.3),
                             ),
                           ),
@@ -280,13 +269,11 @@ class _EsperandoMicrobusScreenState
                     ),
                   ),
 
-                  // Lista
                   Expanded(
                     child: _microbuses.isEmpty && !_loadingMicros
                         ? const Center(
                             child: Column(
-                              mainAxisAlignment:
-                                  MainAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.directions_bus_outlined,
                                     size: 48,
@@ -313,25 +300,20 @@ class _EsperandoMicrobusScreenState
                                     backgroundColor: _lineaSeleccionada
                                             ?.color
                                             .withOpacity(0.15) ??
-                                        AppTheme.accent
-                                            .withOpacity(0.15),
+                                        AppTheme.accent.withOpacity(0.15),
                                     child: Icon(
                                       Icons.directions_bus_rounded,
-                                      color: _lineaSeleccionada
-                                              ?.color ??
+                                      color: _lineaSeleccionada?.color ??
                                           AppTheme.accent,
                                     ),
                                   ),
-                                  title: Text(
-                                    m.placa,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold),
-                                  ),
+                                  title: Text(m.placa,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                   subtitle: Text(
-                                    '${m.velocidad.toStringAsFixed(0)} km/h',
-                                    style:
-                                        const TextStyle(fontSize: 12),
-                                  ),
+                                      '${m.velocidad.toStringAsFixed(0)} km/h',
+                                      style:
+                                          const TextStyle(fontSize: 12)),
                                   trailing: Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8, vertical: 4),
@@ -355,7 +337,6 @@ class _EsperandoMicrobusScreenState
                           ),
                   ),
 
-                  // Auto-refresh toggle
                   Padding(
                     padding: const EdgeInsets.all(12),
                     child: Container(
@@ -364,14 +345,12 @@ class _EsperandoMicrobusScreenState
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                            color: Colors.grey.shade200),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
                       child: Row(
                         children: [
                           const Icon(Icons.autorenew,
-                              size: 18,
-                              color: AppTheme.textSecondary),
+                              size: 18, color: AppTheme.textSecondary),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -382,9 +361,8 @@ class _EsperandoMicrobusScreenState
                             ),
                           ),
                           Switch(
-                            value:
-                                _refreshTimer?.isActive ?? false,
-                            activeColor: AppTheme.accent,
+                            value: _refreshTimer?.isActive ?? false,
+                            activeColor: AppTheme.primary,
                             onChanged: (v) {
                               if (v) {
                                 _iniciarAutoRefresh();

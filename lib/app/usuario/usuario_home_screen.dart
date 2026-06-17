@@ -3,6 +3,7 @@ import '../shared/app_theme.dart';
 import 'recorrido_linea_screen.dart';
 import 'lineas_cercanas_screen.dart';
 import 'esperando_microbus_screen.dart';
+import 'buscar_ruta_screen.dart';
 
 class UsuarioHomeScreen extends StatelessWidget {
   const UsuarioHomeScreen({super.key});
@@ -20,13 +21,7 @@ class UsuarioHomeScreen extends StatelessWidget {
             automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF1565C0), Color(0xFF0D47A1)],
-                  ),
-                ),
+                decoration: const BoxDecoration(gradient: AppTheme.headerGradient),
                 child: const SafeArea(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -75,8 +70,21 @@ class UsuarioHomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 _MenuCard(
-                  icon: Icons.map_outlined,
+                  icon: Icons.alt_route,
                   iconColor: AppTheme.primary,
+                  title: 'Buscar ruta óptima',
+                  subtitle:
+                      'Encuentra la mejor ruta entre dos paradas usando Dijkstra con trasbordos',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const BuscarRutaScreen()),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _MenuCard(
+                  icon: Icons.map_outlined,
+                  iconColor: AppTheme.secondary,
                   title: 'Recorrido de línea',
                   subtitle:
                       'Visualiza el trayecto completo de cualquier línea de microbús en el mapa',
@@ -113,7 +121,6 @@ class UsuarioHomeScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 32),
-                // Info pill
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(

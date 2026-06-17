@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../shared/app_theme.dart';
 import '../../models/linea.dart';
 import '../../services/api_service.dart';
@@ -21,29 +22,33 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
   String _statusMsg = '';
   double _radioMetros = 300;
 
-  GoogleMapController? _mapController;
-  LatLng _centroMapa =
-      const LatLng(AppConfig.mapLat, AppConfig.mapLng);
-  Set<Marker> _markers = {};
-  Set<Circle> _circles = {};
+  final _mapController = MapController();
+  LatLng? _puntoBusqueda; // null = ninguno seleccionado aún
+  List<Marker> _markers = [];
+  List<CircleMarker> _circles = [];
 
   final _api = ApiService();
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  // ── Búsqueda por GPS ────────────────────────────────────────────────────────
 
   Future<void> _buscarConGPS() async {
     setState(() {
       _loading = true;
       _statusMsg = 'Obteniendo tu ubicación...';
     });
-
     try {
-      bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         _setError('El GPS está desactivado. Actívalo e intenta de nuevo.');
         return;
       }
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
@@ -55,62 +60,87 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
         _setError('Permiso de ubicación denegado permanentemente.');
         return;
       }
-
       setState(() => _statusMsg = 'Buscando líneas cercanas...');
       final pos = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium);
-
-      await _buscarEnCoordenadas(pos.latitude, pos.longitude);
+      await _buscarEnCoordenadas(
+          LatLng(pos.latitude, pos.longitude), origenGPS: true);
     } catch (_) {
       _setError('Error al obtener ubicación. Intenta de nuevo.');
     }
   }
 
-  Future<void> _buscarEnPunto() async {
+  // ── Tap en el mapa ──────────────────────────────────────────────────────────
+
+  void _onMapTap(TapPosition _, LatLng punto) {
+    if (_loading) return;
     setState(() {
+      _puntoBusqueda = punto;
       _loading = true;
       _statusMsg = 'Buscando en punto seleccionado...';
     });
-    await _buscarEnCoordenadas(AppConfig.mapLat, AppConfig.mapLng);
+    _buscarEnCoordenadas(punto);
   }
 
-  Future<void> _buscarEnCoordenadas(double lat, double lng) async {
+  // ── Búsqueda genérica ───────────────────────────────────────────────────────
+
+  Future<void> _buscarEnCoordenadas(LatLng punto, {bool origenGPS = false}) async {
     try {
       final raw =
-          await _api.getLineasCercanas(lat, lng, _radioMetros);
+          await _api.getLineasCercanas(punto.latitude, punto.longitude, _radioMetros);
       final lineas = raw
           .map((j) => Linea.fromJson(j as Map<String, dynamic>))
           .toList();
 
-      final centro = LatLng(lat, lng);
-      _mapController?.animateCamera(
-          CameraUpdate.newLatLngZoom(centro, 15));
+      _mapController.move(punto, 15.5);
 
       setState(() {
-        _centroMapa = centro;
+        _puntoBusqueda = punto;
         _lineasCercanas = lineas;
         _loading = false;
         _buscado = true;
         _statusMsg = '';
-        _markers = {
+        _markers = [
           Marker(
-            markerId: const MarkerId('usuario'),
-            position: centro,
-            infoWindow: const InfoWindow(title: 'Tu ubicación'),
-            icon: BitmapDescriptor.defaultMarkerWithHue(
-                BitmapDescriptor.hueAzure),
+            point: punto,
+            width: 40,
+            height: 40,
+            child: origenGPS
+                ? const Icon(Icons.person_pin_circle,
+                    color: Color(0xFF2E7D32), size: 36)
+                : Container(
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2.5),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primary.withOpacity(0.4),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.search,
+                        color: Colors.white, size: 20),
+                  ),
           ),
-        };
-        _circles = {
-          Circle(
-            circleId: const CircleId('radio'),
-            center: centro,
+        ];
+        _circles = [
+          CircleMarker(
+            point: punto,
             radius: _radioMetros,
-            fillColor: const Color(0xFF2E7D32).withOpacity(0.1),
-            strokeColor: const Color(0xFF2E7D32).withOpacity(0.5),
-            strokeWidth: 2,
+            useRadiusInMeter: true,
+            color: (origenGPS
+                    ? const Color(0xFF2E7D32)
+                    : AppTheme.primary)
+                .withOpacity(0.1),
+            borderColor: (origenGPS
+                    ? const Color(0xFF2E7D32)
+                    : AppTheme.primary)
+                .withOpacity(0.5),
+            borderStrokeWidth: 2,
           ),
-        };
+        ];
       });
     } catch (_) {
       _setError('Error al buscar líneas. Verifica la conexión.');
@@ -133,10 +163,10 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
       ),
       body: Column(
         children: [
-          // Panel superior
+          // ── Panel superior ──────────────────────────────────────────────────
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -147,8 +177,7 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                     const SizedBox(width: 8),
                     const Text('Radio de búsqueda:',
                         style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 13)),
+                            color: AppTheme.textSecondary, fontSize: 13)),
                     const Spacer(),
                     Text(
                       '${_radioMetros.toInt()} m',
@@ -167,35 +196,50 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                   activeColor: const Color(0xFF2E7D32),
                   onChanged: (v) => setState(() => _radioMetros = v),
                 ),
-                const SizedBox(height: 8),
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _loading ? null : _buscarConGPS,
                         icon: const Icon(Icons.my_location, size: 18),
-                        label: const Text('Usar mi GPS'),
+                        label: const Text('Mi GPS'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2E7D32),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _loading ? null : _buscarEnPunto,
-                        icon: const Icon(Icons.touch_app, size: 18),
-                        label: const Text('Centro ciudad'),
+                        onPressed: _loading
+                            ? null
+                            : () => _buscarEnCoordenadas(
+                                const LatLng(AppConfig.mapLat, AppConfig.mapLng)),
+                        icon: const Icon(Icons.location_city, size: 18),
+                        label: const Text('Centro'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: const Color(0xFF2E7D32),
-                          side: const BorderSide(
-                              color: Color(0xFF2E7D32)),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
+                          side: const BorderSide(color: Color(0xFF2E7D32)),
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Indicador de modo tap
+                Row(
+                  children: [
+                    const Icon(Icons.touch_app,
+                        size: 14, color: AppTheme.textSecondary),
+                    const SizedBox(width: 6),
+                    Text(
+                      _puntoBusqueda == null
+                          ? 'Toca el mapa para seleccionar cualquier punto'
+                          : 'Punto seleccionado — toca otro para cambiar',
+                      style: const TextStyle(
+                          fontSize: 11, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -203,25 +247,26 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
             ),
           ),
 
-          // Mapa
+          // ── Mapa (altura dinámica mayor para permitir exploración) ──────────
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
-            height:
-                _buscado && _lineasCercanas.isNotEmpty ? 200 : 280,
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _centroMapa,
-                zoom: 15,
+            height: _buscado && _lineasCercanas.isNotEmpty ? 240 : 300,
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: const LatLng(AppConfig.mapLat, AppConfig.mapLng),
+                initialZoom: 13.0,
+                onTap: _onMapTap,
               ),
-              markers: _markers,
-              circles: _circles,
-              myLocationEnabled: true,
-              myLocationButtonEnabled: false,
-              onMapCreated: (c) => _mapController = c,
+              children: [
+                TileLayer(urlTemplate: AppTheme.mapTileUrl, userAgentPackageName: AppTheme.mapTileUserAgent),
+                CircleLayer(circles: _circles),
+                MarkerLayer(markers: _markers),
+              ],
             ),
           ),
 
-          // Estado / loading
+          // ── Estados / resultados ────────────────────────────────────────────
           if (_loading)
             Padding(
               padding: const EdgeInsets.all(20),
@@ -231,12 +276,11 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                   const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2)),
+                      child: CircularProgressIndicator(strokeWidth: 2)),
                   const SizedBox(width: 12),
                   Text(_statusMsg,
-                      style: const TextStyle(
-                          color: AppTheme.textSecondary)),
+                      style:
+                          const TextStyle(color: AppTheme.textSecondary)),
                 ],
               ),
             )
@@ -259,23 +303,26 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
           else if (_buscado)
             Expanded(
               child: _lineasCercanas.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.search_off,
+                          const Icon(Icons.search_off,
                               size: 48,
                               color: AppTheme.textSecondary),
-                          SizedBox(height: 8),
-                          Text('No se encontraron líneas cercanas',
+                          const SizedBox(height: 8),
+                          const Text('No hay líneas en este punto',
                               style: TextStyle(
                                   color: AppTheme.textSecondary)),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
-                              'Intenta aumentar el radio de búsqueda',
-                              style: TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 12)),
+                            'Intenta aumentar el radio o tocar otro punto del mapa',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: AppTheme.textSecondary
+                                    .withOpacity(0.7),
+                                fontSize: 12),
+                          ),
                         ],
                       ),
                     )
@@ -284,9 +331,10 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                       children: [
                         Padding(
                           padding:
-                              const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                              const EdgeInsets.fromLTRB(16, 10, 16, 6),
                           child: Text(
-                            '${_lineasCercanas.length} línea(s) en ${_radioMetros.toInt()} m',
+                            '${_lineasCercanas.length} línea(s) a '
+                            '${_radioMetros.toInt()} m del punto',
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
@@ -328,20 +376,26 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                     ),
             )
           else
-            const Expanded(
+            Expanded(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_on_outlined,
-                        size: 48,
-                        color: AppTheme.textSecondary),
-                    SizedBox(height: 8),
+                    const Icon(Icons.touch_app_outlined,
+                        size: 52, color: AppTheme.textSecondary),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Toca el mapa para elegir un punto',
+                      style: TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
                     Text(
-                      'Presiona "Usar mi GPS" para buscar\nlíneas que pasan cerca de ti',
-                      textAlign: TextAlign.center,
-                      style:
-                          TextStyle(color: AppTheme.textSecondary),
+                      'o usa "Mi GPS" para tu ubicación actual',
+                      style: TextStyle(
+                          color: AppTheme.textSecondary.withOpacity(0.7),
+                          fontSize: 12),
                     ),
                   ],
                 ),
