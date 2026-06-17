@@ -46,7 +46,7 @@ class RoleSelectorScreen extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A237E), Color(0xFF1565C0), Color(0xFF0277BD)],
+            colors: [Color(0xFF703642), Color(0xFF9F4576), Color(0xFFA0527A)],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
@@ -73,7 +73,7 @@ class RoleSelectorScreen extends StatelessWidget {
                 child: const Icon(
                   Icons.directions_bus_rounded,
                   size: 60,
-                  color: Color(0xFF1565C0),
+                  color: Color(0xFF703642),
                 ),
               ),
               const SizedBox(height: 20),
