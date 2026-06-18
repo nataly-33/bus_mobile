@@ -21,44 +21,47 @@ class ResultadosRutaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Ordenar por tiempo total y limitar a 6 opciones
+    final ordenados = [...resultados]
+      ..sort((a, b) => a.tiempoTotalMin.compareTo(b.tiempoTotalMin));
+    final lista = ordenados.take(6).toList();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('${resultados.length} Ruta(s) Encontradas'),
+        title: Text('${lista.length} ruta${lista.length == 1 ? '' : 's'} encontradas'),
       ),
       body: Column(
         children: [
           // Cabecera origen → destino
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: Row(
               children: [
-                const Icon(Icons.trip_origin, color: Colors.green, size: 20),
-                const SizedBox(width: 8),
+                Icon(Icons.location_on, color: Colors.green.shade700, size: 18),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    resultados.first.origenDesc,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                    lista.first.origenDesc,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  padding: EdgeInsets.symmetric(horizontal: 6),
                   child: Icon(Icons.arrow_forward,
-                      color: AppTheme.textSecondary, size: 16),
+                      color: AppTheme.textSecondary, size: 14),
                 ),
                 Expanded(
                   child: Text(
-                    resultados.first.destinoDesc,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600),
+                    lista.first.destinoDesc,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
                   ),
                 ),
-                const SizedBox(width: 8),
-                const Icon(Icons.location_on, color: Colors.blue, size: 20),
+                const SizedBox(width: 6),
+                Icon(Icons.location_on, color: AppTheme.primary, size: 18),
               ],
             ),
           ),
@@ -66,11 +69,11 @@ class ResultadosRutaScreen extends StatelessWidget {
           // Lista de resultados
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: resultados.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              padding: const EdgeInsets.all(14),
+              itemCount: lista.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, i) {
-                final r = resultados[i];
+                final r = lista[i];
                 final esMejor = i == 0;
                 return _ResultadoCard(
                   resultado: r,

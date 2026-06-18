@@ -42,116 +42,78 @@ class RoleSelectorScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0xFF703642), Color(0xFF9F4576), Color(0xFFA0527A)],
-            stops: [0.0, 0.5, 1.0],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AppTheme.splashGradient),
         child: SafeArea(
-          child: Column(
-            children: [
-              const Spacer(flex: 2),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              children: [
+                const Spacer(flex: 3),
 
-              // Logo
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                // Logo
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white24, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.directions_bus_rounded,
+                    size: 52,
+                    color: Colors.white,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.directions_bus_rounded,
-                  size: 60,
-                  color: Color(0xFF703642),
+                const SizedBox(height: 18),
+                const Text(
+                  'MicroBus SCZ',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 1,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'MicroBus SCZ',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
+                const SizedBox(height: 4),
+                const Text(
+                  'Santa Cruz de la Sierra',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white54,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'Sistema de Información Geográfica\nde Microbuses — Santa Cruz de la Sierra',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.white60,
-                  height: 1.5,
-                ),
-              ),
 
-              const Spacer(flex: 2),
+                const Spacer(flex: 3),
 
-              // Cards de rol
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: Column(
-                  children: [
-                    const Text(
-                      'SELECCIONA TU ROL',
-                      style: TextStyle(
-                        color: Colors.white38,
-                        fontSize: 11,
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _RoleCard(
-                      icon: Icons.person_pin_rounded,
-                      title: 'Soy Conductor',
-                      subtitle: 'Registrar recorridos y enviar mi posición GPS',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF8F00), Color(0xFFE65100)],
-                      ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    _RoleCard(
-                      icon: Icons.people_alt_rounded,
-                      title: 'Soy Pasajero',
-                      subtitle:
-                          'Ver rutas y microbuses en tiempo real en el mapa',
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-                      ),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const UsuarioHomeScreen()),
-                      ),
-                    ),
-                  ],
+                // Tarjeta Conductor
+                _RoleCard(
+                  icon: Icons.person_pin_rounded,
+                  title: 'Soy Conductor',
+                  color: AppTheme.catawba,
+                  borderColor: Colors.white24,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
                 ),
-              ),
+                const SizedBox(height: 14),
 
-              const Spacer(),
-              const Text(
-                'v1.0.0 · UAGRM 2026',
-                style: TextStyle(color: Colors.white24, fontSize: 11),
-              ),
-              const SizedBox(height: 20),
-            ],
+                // Tarjeta Pasajero
+                _RoleCard(
+                  icon: Icons.people_alt_rounded,
+                  title: 'Soy Pasajero',
+                  color: AppTheme.deepPuce,
+                  borderColor: Colors.white24,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const UsuarioHomeScreen()),
+                  ),
+                ),
+
+                const Spacer(flex: 2),
+              ],
+            ),
           ),
         ),
       ),
@@ -159,83 +121,78 @@ class RoleSelectorScreen extends StatelessWidget {
   }
 }
 
-class _RoleCard extends StatelessWidget {
+class _RoleCard extends StatefulWidget {
   final IconData icon;
   final String title;
-  final String subtitle;
-  final Gradient gradient;
+  final Color color;
+  final Color borderColor;
   final VoidCallback onTap;
 
   const _RoleCard({
     required this.icon,
     required this.title,
-    required this.subtitle,
-    required this.gradient,
+    required this.color,
+    required this.borderColor,
     required this.onTap,
   });
 
   @override
+  State<_RoleCard> createState() => _RoleCardState();
+}
+
+class _RoleCardState extends State<_RoleCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      borderRadius: BorderRadius.circular(18),
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Ink(
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           decoration: BoxDecoration(
-            gradient: gradient,
+            color: widget.color.withOpacity(0.85),
             borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: widget.borderColor, width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.25),
+                color: widget.color.withOpacity(0.4),
                 blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(icon, color: Colors.white, size: 32),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(13),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white70,
-                          height: 1.3,
-                        ),
-                      ),
-                    ],
+                child: Icon(widget.icon, color: Colors.white, size: 30),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  widget.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios,
-                    color: Colors.white60, size: 16),
-              ],
-            ),
+              ),
+              const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+            ],
           ),
         ),
       ),

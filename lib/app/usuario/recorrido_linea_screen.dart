@@ -45,13 +45,15 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
       final raw = await _api.getLineas();
       final lineas =
           raw.map((j) => Linea.fromJson(j as Map<String, dynamic>)).toList();
+      if (!mounted) return;
       setState(() {
         _lineas = lineas;
         _lineaSeleccionada = lineas.isNotEmpty ? lineas.first : null;
         _loadingLineas = false;
       });
       if (_lineaSeleccionada != null) _loadPuntos();
-    } catch (_) {
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _loadingLineas = false);
     }
   }
@@ -86,15 +88,17 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
       if (puntos.isNotEmpty) {
         markers.add(Marker(
           point: LatLng(puntos.first.latitud, puntos.first.longitud),
-          width: 32,
-          height: 32,
-          child: const Icon(Icons.circle, color: Colors.green, size: 20),
+          width: 38,
+          height: 38,
+          alignment: Alignment.topCenter,
+          child: Icon(Icons.location_on, color: Colors.green.shade700, size: 38),
         ));
         markers.add(Marker(
           point: LatLng(puntos.last.latitud, puntos.last.longitud),
-          width: 32,
-          height: 32,
-          child: const Icon(Icons.circle, color: Colors.red, size: 20),
+          width: 38,
+          height: 38,
+          alignment: Alignment.topCenter,
+          child: Icon(Icons.location_on, color: Colors.red.shade700, size: 38),
         ));
 
         if (points.length > 1) {
@@ -115,7 +119,8 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
         _markers = markers;
         _loadingPuntos = false;
       });
-    } catch (_) {
+    } catch (e) {
+      if (!mounted) return;
       setState(() => _loadingPuntos = false);
     }
   }
@@ -199,6 +204,19 @@ class _RecorridoLineaScreenState extends State<RecorridoLineaScreen> {
                     PolylineLayer(polylines: _polylines),
                     MarkerLayer(markers: _markers),
                   ],
+                ),
+                // Brújula en Stack exterior (Align dentro de FlutterMap.children no funciona)
+                Positioned(
+                  bottom: 12,
+                  right: 12,
+                  child: FloatingActionButton.small(
+                    heroTag: 'north_rec',
+                    onPressed: () => _mapController.rotate(0),
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primary,
+                    elevation: 2,
+                    child: const Icon(Icons.explore, size: 20),
+                  ),
                 ),
                 if (_loadingPuntos)
                   Container(

@@ -92,13 +92,10 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
       final p = pasoRuta.first.puntos.first;
       result.add(Marker(
         point: LatLng(p.lat, p.lng),
-        width: 44,
+        width: 34,
         height: 44,
-        child: _PinMarker(
-          color: Colors.green.shade700,
-          icon: Icons.trip_origin,
-          label: 'A',
-        ),
+        alignment: Alignment.topCenter,
+        child: _PinMarker(color: Colors.green.shade700, label: 'A'),
       ));
     }
 
@@ -107,33 +104,26 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
       final p = pasoRuta.last.puntos.last;
       result.add(Marker(
         point: LatLng(p.lat, p.lng),
-        width: 44,
+        width: 34,
         height: 44,
-        child: _PinMarker(
-          color: Colors.blue.shade700,
-          icon: Icons.location_on,
-          label: 'B',
-        ),
+        alignment: Alignment.topCenter,
+        child: _PinMarker(color: AppTheme.secondary, label: 'B'),
       ));
     }
 
-    // Trasbordos: último punto del paso anterior = primero del siguiente
+    // Trasbordos
     for (int i = 0; i < widget.resultado.pasos.length; i++) {
       final paso = widget.resultado.pasos[i];
       if (paso.tipo != 'transbordo') continue;
-      // El punto de trasbordo está al final del paso 'ruta' anterior
       if (i > 0) {
         final anterior = widget.resultado.pasos[i - 1];
         if (anterior.tipo == 'ruta' && anterior.puntos.isNotEmpty) {
           final p = anterior.puntos.last;
           result.add(Marker(
             point: LatLng(p.lat, p.lng),
-            width: 48,
-            height: 48,
-            child: _TransbordoMarker(
-              deLinea: paso.deLinea ?? '',
-              aLinea: paso.aLinea ?? '',
-            ),
+            width: 30,
+            height: 30,
+            child: _TransbordoMarker(),
           ));
         }
       }
@@ -249,10 +239,25 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: _fitMapa,
-        backgroundColor: AppTheme.primary,
-        child: const Icon(Icons.fit_screen, color: Colors.white),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'north',
+            onPressed: () => _mapController.rotate(0),
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.primary,
+            child: const Icon(Icons.explore, size: 20),
+          ),
+          const SizedBox(height: 8),
+          FloatingActionButton.small(
+            heroTag: 'fit',
+            onPressed: _fitMapa,
+            backgroundColor: AppTheme.primary,
+            foregroundColor: Colors.white,
+            child: const Icon(Icons.fit_screen, size: 20),
+          ),
+        ],
       ),
     );
   }
@@ -262,74 +267,55 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
 
 class _PinMarker extends StatelessWidget {
   final Color color;
-  final IconData icon;
   final String label;
 
-  const _PinMarker(
-      {required this.color, required this.icon, required this.label});
+  const _PinMarker({required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Column(
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 26,
+          height: 26,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
             border: Border.all(color: Colors.white, width: 2),
             boxShadow: [
-              BoxShadow(
-                color: color.withOpacity(0.5),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
+              BoxShadow(color: color.withOpacity(0.45), blurRadius: 4, offset: const Offset(0, 2)),
             ],
           ),
           child: Center(
-            child: Text(
-              label,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13),
-            ),
+            child: Text(label,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
         ),
-        Container(
-          width: 2,
-          height: 8,
-          color: color,
-        ),
+        Container(width: 2, height: 6, color: color),
       ],
     );
   }
 }
 
 class _TransbordoMarker extends StatelessWidget {
-  final String deLinea;
-  final String aLinea;
-
-  const _TransbordoMarker({required this.deLinea, required this.aLinea});
+  const _TransbordoMarker();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.orange.shade700,
+        color: AppTheme.secondary,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 2),
+        border: Border.all(color: Colors.white, width: 1.5),
         boxShadow: [
-          BoxShadow(
-            color: Colors.orange.withOpacity(0.5),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: AppTheme.secondary.withOpacity(0.4), blurRadius: 4),
         ],
       ),
-      child: const Icon(Icons.transfer_within_a_station,
-          color: Colors.white, size: 22),
+      child: const Icon(Icons.swap_horiz, color: Colors.white, size: 16),
     );
   }
 }

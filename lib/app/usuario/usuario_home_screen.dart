@@ -15,49 +15,86 @@ class UsuarioHomeScreen extends StatelessWidget {
       body: CustomScrollView(
         slivers: [
           SliverAppBar(
-            expandedHeight: 180,
+            expandedHeight: 220,
             pinned: true,
             backgroundColor: AppTheme.primary,
-            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: const Text('MicroBus SCZ',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                decoration: const BoxDecoration(gradient: AppTheme.headerGradient),
-                child: const SafeArea(
+                decoration: const BoxDecoration(gradient: AppTheme.splashGradient),
+                child: SafeArea(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      SizedBox(height: 20),
-                      Icon(Icons.directions_bus_rounded,
-                          size: 48, color: Colors.white70),
-                      SizedBox(height: 8),
-                      Text(
-                        'MicroBus SCZ',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                      // Icono con fondo circular translúcido
+                      Container(
+                        width: 70,
+                        height: 70,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.3), width: 1.5),
+                        ),
+                        child: const Icon(
+                          Icons.directions_bus_rounded,
+                          size: 38,
                           color: Colors.white,
-                          letterSpacing: 1,
                         ),
                       ),
-                      Text(
+                      const SizedBox(height: 10),
+                      const Text(
+                        'MicroBus SCZ',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
                         'Santa Cruz de la Sierra',
                         style: TextStyle(color: Colors.white60, fontSize: 13),
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                              color: Colors.white.withOpacity(0.25)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_city,
+                                size: 13, color: Colors.white70),
+                            SizedBox(width: 5),
+                            Text(
+                              'Sistema de transporte urbano',
+                              style: TextStyle(
+                                  color: Colors.white70, fontSize: 11),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              title: const Text('MicroBus SCZ',
-                  style: TextStyle(color: Colors.white, fontSize: 16)),
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 12),
-            ),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
             ),
           ),
+
           SliverPadding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const Text(
@@ -68,77 +105,86 @@ class UsuarioHomeScreen extends StatelessWidget {
                     color: AppTheme.textPrimary,
                   ),
                 ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Elige una opción para comenzar',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
                 const SizedBox(height: 16),
-                _MenuCard(
-                  icon: Icons.alt_route,
-                  iconColor: AppTheme.primary,
-                  title: 'Buscar ruta óptima',
-                  subtitle:
-                      'Encuentra la mejor ruta entre dos paradas usando Dijkstra con trasbordos',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const BuscarRutaScreen()),
-                  ),
+
+                // Grid 2x2
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                  childAspectRatio: 0.92,
+                  children: [
+                    _GridCard(
+                      icon: Icons.alt_route,
+                      title: 'Buscar ruta',
+                      subtitle: 'Origen → Destino',
+                      color: AppTheme.primary,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const BuscarRutaScreen())),
+                    ),
+                    _GridCard(
+                      icon: Icons.map_outlined,
+                      title: 'Recorridos',
+                      subtitle: 'Ver trayecto de líneas',
+                      color: AppTheme.secondary,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const RecorridoLineaScreen())),
+                    ),
+                    _GridCard(
+                      icon: Icons.location_searching,
+                      title: 'Líneas cercanas',
+                      subtitle: 'Rutas en mi zona',
+                      color: AppTheme.deepPuce,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) => const LineasCercanasScreen())),
+                    ),
+                    _GridCard(
+                      icon: Icons.directions_bus_rounded,
+                      title: 'Buses activos',
+                      subtitle: 'Ubicación en tiempo real',
+                      color: AppTheme.parrotPink,
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const EsperandoMicrobusScreen())),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                _MenuCard(
-                  icon: Icons.map_outlined,
-                  iconColor: AppTheme.secondary,
-                  title: 'Recorrido de línea',
-                  subtitle:
-                      'Visualiza el trayecto completo de cualquier línea de microbús en el mapa',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const RecorridoLineaScreen()),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _MenuCard(
-                  icon: Icons.location_searching,
-                  iconColor: const Color(0xFF2E7D32),
-                  title: '¿Qué líneas pasan aquí?',
-                  subtitle:
-                      'Detecta automáticamente las líneas que pasan cerca de tu ubicación actual',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const LineasCercanasScreen()),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                _MenuCard(
-                  icon: Icons.access_time_rounded,
-                  iconColor: AppTheme.accent,
-                  title: 'Esperando microbús',
-                  subtitle:
-                      'Ve en tiempo real dónde están los microbuses activos de tu línea',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const EsperandoMicrobusScreen()),
-                  ),
-                ),
-                const SizedBox(height: 32),
+
+                const SizedBox(height: 20),
+
+                // Tip inferior
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: AppTheme.primary.withOpacity(0.07),
+                    color: AppTheme.lavenderBlush,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppTheme.primary.withOpacity(0.2)),
+                    border: Border.all(color: AppTheme.paleChestnut),
                   ),
                   child: const Row(
                     children: [
-                      Icon(Icons.info_outline,
-                          color: AppTheme.primary, size: 18),
+                      Icon(Icons.tips_and_updates_outlined,
+                          size: 20, color: AppTheme.secondary),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          'Las posiciones se actualizan cada 30 segundos en tiempo real.',
+                          'Toca el mapa para elegir tu parada de origen '
+                          'y destino al buscar rutas.',
                           style: TextStyle(
-                              color: AppTheme.textSecondary, fontSize: 12),
+                              fontSize: 12, color: AppTheme.textSecondary),
                         ),
                       ),
                     ],
@@ -153,70 +199,99 @@ class UsuarioHomeScreen extends StatelessWidget {
   }
 }
 
-class _MenuCard extends StatelessWidget {
+class _GridCard extends StatefulWidget {
   final IconData icon;
-  final Color iconColor;
   final String title;
   final String subtitle;
+  final Color color;
   final VoidCallback onTap;
 
-  const _MenuCard({
+  const _GridCard({
     required this.icon,
-    required this.iconColor,
     required this.title,
     required this.subtitle,
+    required this.color,
     required this.onTap,
   });
 
   @override
+  State<_GridCard> createState() => _GridCardState();
+}
+
+class _GridCardState extends State<_GridCard> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      borderRadius: BorderRadius.circular(16),
-      color: Colors.white,
-      elevation: 2,
-      shadowColor: Colors.black12,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withOpacity(_pressed ? 0.22 : 0.12),
+                blurRadius: _pressed ? 6 : 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+            border: Border.all(
+              color: _pressed
+                  ? widget.color.withOpacity(0.5)
+                  : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Icono con fondo cuadrado redondeado
               Container(
-                width: 56,
-                height: 56,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      widget.color.withOpacity(0.18),
+                      widget.color.withOpacity(0.08),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: Icon(icon, color: iconColor, size: 28),
+                child: Icon(widget.icon, color: widget.color, size: 32),
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
+              const SizedBox(height: 12),
+              Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
                 ),
               ),
-              Icon(Icons.chevron_right, color: iconColor, size: 22),
+              const SizedBox(height: 3),
+              Text(
+                widget.subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 10,
+                  color: AppTheme.textSecondary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
           ),
         ),
