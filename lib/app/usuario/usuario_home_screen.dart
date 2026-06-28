@@ -22,7 +22,7 @@ class UsuarioHomeScreen extends StatelessWidget {
               icon: const Icon(Icons.arrow_back, color: Colors.white),
               onPressed: () => Navigator.pop(context),
             ),
-            title: const Text('MicroBus SCZ',
+            title: const Text('',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
@@ -41,11 +41,7 @@ class UsuarioHomeScreen extends StatelessWidget {
                           border: Border.all(
                               color: Colors.white.withOpacity(0.3), width: 1.5),
                         ),
-                        child: const Icon(
-                          Icons.directions_bus_rounded,
-                          size: 38,
-                          color: Colors.white,
-                        ),
+                        child: const Icon(Icons.directions_bus, size: 38, color: Colors.white),
                       ),
                       const SizedBox(height: 10),
                       const Text(
@@ -58,10 +54,6 @@ class UsuarioHomeScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Santa Cruz de la Sierra',
-                        style: TextStyle(color: Colors.white60, fontSize: 13),
-                      ),
                       const SizedBox(height: 10),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -94,7 +86,7 @@ class UsuarioHomeScreen extends StatelessWidget {
           ),
 
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 10),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 const Text(
@@ -113,8 +105,6 @@ class UsuarioHomeScreen extends StatelessWidget {
                     color: AppTheme.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 16),
-
                 // Grid 2x2
                 GridView.count(
                   crossAxisCount: 2,
@@ -125,7 +115,7 @@ class UsuarioHomeScreen extends StatelessWidget {
                   childAspectRatio: 0.92,
                   children: [
                     _GridCard(
-                      icon: Icons.alt_route,
+                      icon: Icon(Icons.alt_route, color: AppTheme.primary, size: 32),
                       title: 'Buscar ruta',
                       subtitle: 'Origen → Destino',
                       color: AppTheme.primary,
@@ -134,7 +124,7 @@ class UsuarioHomeScreen extends StatelessWidget {
                               builder: (_) => const BuscarRutaScreen())),
                     ),
                     _GridCard(
-                      icon: Icons.map_outlined,
+                      icon: Icon(Icons.map_outlined, color: AppTheme.secondary, size: 32),
                       title: 'Recorridos',
                       subtitle: 'Ver trayecto de líneas',
                       color: AppTheme.secondary,
@@ -143,7 +133,7 @@ class UsuarioHomeScreen extends StatelessWidget {
                               builder: (_) => const RecorridoLineaScreen())),
                     ),
                     _GridCard(
-                      icon: Icons.location_searching,
+                      icon: Icon(Icons.location_searching, color: AppTheme.deepPuce, size: 32),
                       title: 'Líneas cercanas',
                       subtitle: 'Rutas en mi zona',
                       color: AppTheme.deepPuce,
@@ -152,7 +142,7 @@ class UsuarioHomeScreen extends StatelessWidget {
                               builder: (_) => const LineasCercanasScreen())),
                     ),
                     _GridCard(
-                      icon: Icons.directions_bus_rounded,
+                      icon: const Icon(Icons.directions_bus, size: 32, color: AppTheme.parrotPink),
                       title: 'Buses activos',
                       subtitle: 'Ubicación en tiempo real',
                       color: AppTheme.parrotPink,
@@ -166,30 +156,6 @@ class UsuarioHomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 20),
 
-                // Tip inferior
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.lavenderBlush,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.paleChestnut),
-                  ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.tips_and_updates_outlined,
-                          size: 20, color: AppTheme.secondary),
-                      SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Toca el mapa para elegir tu parada de origen '
-                          'y destino al buscar rutas.',
-                          style: TextStyle(
-                              fontSize: 12, color: AppTheme.textSecondary),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
               ]),
             ),
           ),
@@ -200,7 +166,7 @@ class UsuarioHomeScreen extends StatelessWidget {
 }
 
 class _GridCard extends StatefulWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String subtitle;
   final Color color;
@@ -269,7 +235,7 @@ class _GridCardState extends State<_GridCard> {
                   ),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: Icon(widget.icon, color: widget.color, size: 32),
+                child: widget.icon,
               ),
               const SizedBox(height: 12),
               Text(

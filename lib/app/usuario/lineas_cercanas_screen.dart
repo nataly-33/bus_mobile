@@ -169,11 +169,11 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
         ? _hexColor(_lineaVisualizando!.colorHex)
         : AppTheme.primary;
 
-    final showPin = !_loading && _lineaVisualizando == null;
     final showResults = _buscado &&
         _lineasCercanas.isNotEmpty &&
         !_loading &&
         _lineaVisualizando == null;
+    final showPin = !_loading && _lineaVisualizando == null && !showResults;
     final showEmpty = _buscado &&
         _lineasCercanas.isEmpty &&
         !_loading &&
@@ -443,8 +443,7 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                                 const EdgeInsets.fromLTRB(16, 6, 16, 2),
                             child: Row(
                               children: [
-                                Icon(Icons.directions_bus,
-                                    size: 14, color: AppTheme.primary),
+                                Icon(Icons.directions_bus, size: 14, color: AppTheme.primary),
                                 const SizedBox(width: 6),
                                 Text(
                                   '${_lineasCercanas.length} línea(s) a ${_radioMetros.toInt()} m',
@@ -471,8 +470,7 @@ class _LineasCercanasScreenState extends State<LineasCercanasScreen> {
                                     backgroundColor:
                                         lColor.withOpacity(0.15),
                                     radius: 18,
-                                    child: Icon(Icons.directions_bus,
-                                        color: lColor, size: 18),
+                                    child: Icon(Icons.directions_bus, size: 18, color: lColor),
                                   ),
                                   title: Text(l.nombre,
                                       style: const TextStyle(
