@@ -17,6 +17,12 @@ class DetalleRutaScreen extends StatelessWidget {
     }
   }
 
+  String _sentidoLabel(int? idRuta) {
+    if (idRuta == 1) return 'Ida';
+    if (idRuta == 2) return 'Vuelta';
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -77,6 +83,7 @@ class DetalleRutaScreen extends StatelessWidget {
                   return _PasoRutaWidget(
                     paso: paso,
                     hexColor: _hexColor,
+                    sentidoLabel: _sentidoLabel,
                     showLine: !isLast,
                   );
                 } else {
@@ -124,11 +131,13 @@ class _ResumenItem extends StatelessWidget {
 class _PasoRutaWidget extends StatelessWidget {
   final PasoRuta paso;
   final Color Function(String?) hexColor;
+  final String Function(int?) sentidoLabel;
   final bool showLine;
 
   const _PasoRutaWidget({
     required this.paso,
     required this.hexColor,
+    required this.sentidoLabel,
     required this.showLine,
   });
 
@@ -201,6 +210,25 @@ class _PasoRutaWidget extends StatelessWidget {
                                 fontWeight: FontWeight.bold),
                           ),
                         ),
+                        if (paso.idRuta != null) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.2),
+                              border: Border.all(color: color, width: 0.5),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              sentidoLabel(paso.idRuta),
+                              style: TextStyle(
+                                  color: color,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
                         const Spacer(),
                         const Icon(Icons.schedule,
                             size: 13, color: AppTheme.textSecondary),

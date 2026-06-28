@@ -33,6 +33,12 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
     }
   }
 
+  String _sentidoLabel(int? idRuta) {
+    if (idRuta == 1) return 'Ida';
+    if (idRuta == 2) return 'Vuelta';
+    return '';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -107,7 +113,7 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
         width: 34,
         height: 44,
         alignment: Alignment.topCenter,
-        child: _PinMarker(color: AppTheme.secondary, label: 'B'),
+        child: _PinMarker(color: Colors.blue.shade700, label: 'B'),
       ));
     }
 
@@ -187,12 +193,44 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                                     ),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text(
-                                    '${p.linea ?? '?'}: '
-                                    '${p.desdeDesc ?? ''} → ${p.hastaDesc ?? ''}',
-                                    style:
-                                        const TextStyle(fontSize: 11),
-                                    overflow: TextOverflow.ellipsis,
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        if (p.idRuta != null) ...[
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 5, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppTheme.primary
+                                                  .withOpacity(0.1),
+                                              borderRadius:
+                                                  BorderRadius.circular(3),
+                                              border: Border.all(
+                                                  color: AppTheme.primary,
+                                                  width: 0.5),
+                                            ),
+                                            child: Text(
+                                              _sentidoLabel(p.idRuta),
+                                              style: const TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.bold,
+                                                color: AppTheme.primary,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                        ],
+                                        Expanded(
+                                          child: Text(
+                                            '${p.linea ?? '?'}: '
+                                            '${p.desdeDesc ?? ''} → ${p.hastaDesc ?? ''}',
+                                            style:
+                                                const TextStyle(fontSize: 11),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -203,14 +241,14 @@ class _MapaRutaScreenState extends State<MapaRutaScreen> {
                       const Divider(height: 10),
                       Row(
                         children: [
-                          const Icon(Icons.transfer_within_a_station,
-                              size: 14, color: AppTheme.secondary),
+                          Icon(Icons.transfer_within_a_station,
+                              size: 14, color: Colors.orange.shade700),
                           const SizedBox(width: 6),
                           Text(
                             '${widget.resultado.trasbordos} trasbordo(s)',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 11,
-                                color: AppTheme.secondary,
+                                color: Colors.orange.shade700,
                                 fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -308,11 +346,11 @@ class _TransbordoMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppTheme.secondary,
+        color: Colors.orange.shade700,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 1.5),
         boxShadow: [
-          BoxShadow(color: AppTheme.secondary.withOpacity(0.4), blurRadius: 4),
+          BoxShadow(color: Colors.orange.shade700.withOpacity(0.4), blurRadius: 4),
         ],
       ),
       child: const Icon(Icons.swap_horiz, color: Colors.white, size: 16),
