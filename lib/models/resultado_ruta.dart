@@ -10,6 +10,7 @@ class PasoRuta {
   // tipo == 'ruta'
   final String? linea;
   final String? color;
+  final int? idRuta; // 1 = Ida, 2 = Vuelta
   final String? desdeDesc;
   final String? hastaDesc;
   final double? tiempoMin;
@@ -25,6 +26,7 @@ class PasoRuta {
     required this.tipo,
     this.linea,
     this.color,
+    this.idRuta,
     this.desdeDesc,
     this.hastaDesc,
     this.tiempoMin,
@@ -39,6 +41,7 @@ class PasoRuta {
         tipo: j['tipo'] as String,
         linea: j['linea'] as String?,
         color: j['color'] as String?,
+        idRuta: j['id_ruta'] as int?,
         desdeDesc: j['desde_desc'] as String?,
         hastaDesc: j['hasta_desc'] as String?,
         tiempoMin: (j['tiempo_min'] as num?)?.toDouble(),
