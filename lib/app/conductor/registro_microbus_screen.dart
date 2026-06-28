@@ -158,8 +158,7 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
                         ? const Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.directions_bus,
-                                  size: 40, color: AppTheme.accent),
+                              Icon(Icons.directions_bus, size: 40, color: AppTheme.accent),
                               SizedBox(height: 4),
                               Text('Agregar foto',
                                   style: TextStyle(
@@ -189,7 +188,7 @@ class _RegistroMicrobusScreenState extends State<RegistroMicrobusScreen> {
                 controller: _modeloCtrl,
                 decoration: const InputDecoration(
                   labelText: 'Modelo *',
-                  prefixIcon: Icon(Icons.directions_bus_outlined),
+                  prefixIcon: const Icon(Icons.directions_bus),
                   hintText: 'Ej: Toyota Hiace',
                 ),
                 textCapitalization: TextCapitalization.words,

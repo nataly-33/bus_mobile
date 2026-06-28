@@ -59,11 +59,7 @@ class RoleSelectorScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(color: Colors.white24, width: 1.5),
                   ),
-                  child: const Icon(
-                    Icons.directions_bus_rounded,
-                    size: 52,
-                    color: Colors.white,
-                  ),
+                  child: const Icon(Icons.directions_bus, size: 52, color: Colors.white),
                 ),
                 const SizedBox(height: 18),
                 const Text(

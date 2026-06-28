@@ -213,8 +213,7 @@ class _BusMarkerWidget extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(Icons.directions_bus_rounded,
-                color: marker.color, size: 28),
+            Icon(Icons.directions_bus, color: marker.color, size: 28),
           ],
         ),
       );
