@@ -78,8 +78,7 @@ class _EsperandoMicrobusScreenState extends State<EsperandoMicrobusScreen> {
           height: 48,
           child: Tooltip(
             message: '${m.placa} · ${m.velocidad.toStringAsFixed(0)} km/h',
-            child: Icon(Icons.directions_bus_rounded,
-                color: lineaColor, size: 36),
+            child: Icon(Icons.directions_bus, color: lineaColor, size: 36),
           ),
         ));
       }
@@ -275,9 +274,7 @@ class _EsperandoMicrobusScreenState extends State<EsperandoMicrobusScreen> {
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.directions_bus_outlined,
-                                    size: 48,
-                                    color: AppTheme.textSecondary),
+                                Icon(Icons.directions_bus, size: 48, color: AppTheme.textSecondary),
                                 SizedBox(height: 8),
                                 Text(
                                   'No hay microbuses activos\nen esta línea ahora',
@@ -302,7 +299,7 @@ class _EsperandoMicrobusScreenState extends State<EsperandoMicrobusScreen> {
                                             .withOpacity(0.15) ??
                                         AppTheme.accent.withOpacity(0.15),
                                     child: Icon(
-                                      Icons.directions_bus_rounded,
+                                      Icons.directions_bus,
                                       color: _lineaSeleccionada?.color ??
                                           AppTheme.accent,
                                     ),
