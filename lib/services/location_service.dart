@@ -16,14 +16,14 @@ class LocationService {
     if (permission == LocationPermission.deniedForever) return null;
 
     return await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
+      desiredAccuracy: LocationAccuracy.bestForNavigation,
     );
   }
 
   Stream<Position> getPositionStream() {
     const settings = LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 10,
+      accuracy: LocationAccuracy.bestForNavigation,
+      distanceFilter: 5,
     );
     return Geolocator.getPositionStream(locationSettings: settings);
   }

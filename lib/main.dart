@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app/shared/app_theme.dart';
 import 'app/conductor/login_screen.dart';
+import 'app/conductor/conductor_home_screen.dart';
 import 'app/usuario/usuario_home_screen.dart';
 import 'providers/lineas_provider.dart';
 import 'providers/conductor_session_provider.dart';
@@ -35,11 +37,63 @@ class BusesSigApp extends StatelessWidget {
   }
 }
 
-class RoleSelectorScreen extends StatelessWidget {
+class RoleSelectorScreen extends StatefulWidget {
   const RoleSelectorScreen({super.key});
 
   @override
+  State<RoleSelectorScreen> createState() => _RoleSelectorScreenState();
+}
+
+class _RoleSelectorScreenState extends State<RoleSelectorScreen> {
+  bool _checking = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSession();
+  }
+
+  Future<void> _checkSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    final conductorId = prefs.getInt('conductor_id');
+    final isPasajero = prefs.getBool('is_pasajero') ?? false;
+
+    if (!mounted) return;
+
+    if (conductorId != null) {
+      // Si es conductor, va a su home y no volvemos aquí fácilmente
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ConductorHomeScreen()),
+      );
+    } else if (isPasajero) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const UsuarioHomeScreen()),
+      );
+    } else {
+      setState(() => _checking = false);
+    }
+  }
+
+  Future<void> _entrarComoPasajero() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_pasajero', true);
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const UsuarioHomeScreen()),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_checking) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.splashGradient),
@@ -101,10 +155,7 @@ class RoleSelectorScreen extends StatelessWidget {
                   title: 'Soy Pasajero',
                   color: AppTheme.deepPuce,
                   borderColor: Colors.white24,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const UsuarioHomeScreen()),
-                  ),
+                  onTap: _entrarComoPasajero,
                 ),
 
                 const Spacer(flex: 2),

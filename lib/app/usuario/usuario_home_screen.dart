@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../main.dart';
 import '../shared/app_theme.dart';
 import 'recorrido_linea_screen.dart';
 import 'lineas_cercanas_screen.dart';
@@ -7,6 +9,16 @@ import 'buscar_ruta_screen.dart';
 
 class UsuarioHomeScreen extends StatelessWidget {
   const UsuarioHomeScreen({super.key});
+
+  Future<void> _logoutPasajero(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('is_pasajero');
+    if (!context.mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const RoleSelectorScreen()),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +32,7 @@ class UsuarioHomeScreen extends StatelessWidget {
             backgroundColor: AppTheme.primary,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => _logoutPasajero(context),
             ),
             title: const Text('',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

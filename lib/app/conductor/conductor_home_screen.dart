@@ -124,7 +124,7 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
 
     // Obtener posición inicial
     try {
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation);
       final punto = LatLng(pos.latitude, pos.longitude);
       setState(() {
         _posActual = punto;
@@ -147,7 +147,7 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
     _gpsTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
       if (_recorridoId == null) return;
       try {
-        final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.bestForNavigation);
         if (_lastPosition != null) {
           _distanciaAcumulada += Geolocator.distanceBetween(
             _lastPosition!.latitude, _lastPosition!.longitude,
@@ -408,9 +408,9 @@ class _ConductorHomeScreenState extends State<ConductorHomeScreen> {
                   child: Stack(children: [
                     FlutterMap(
                       mapController: _mapController,
-                      options: const MapOptions(
-                        initialCenter: LatLng(-17.7833, -63.1824),
-                        initialZoom: 15.0,
+                      options: MapOptions(
+                        initialCenter: _posActual ?? const LatLng(-17.7833, -63.1824),
+                        initialZoom: 15.5,
                       ),
                       children: [
                         TileLayer(
