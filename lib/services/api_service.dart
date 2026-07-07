@@ -144,8 +144,8 @@ class ApiService {
   }) async {
     await _post('$base/api/posiciones/', {
       'recorrido': recorridoId,
-      'latitud': lat,
-      'longitud': lng,
+      'latitud': double.parse(lat.toStringAsFixed(6)),
+      'longitud': double.parse(lng.toStringAsFixed(6)),
       'velocidad': velocidad,
       'distancia': distancia,
       'tiempo_seg': tiempoSeg,
